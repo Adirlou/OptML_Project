@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class Quantizer:
     """
     Class representing the sparsification (quantization) method

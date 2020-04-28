@@ -1,26 +1,31 @@
 import time
 import numpy as np
 
+from communicator import Communicator
+from quantizer import Quantizer
+
 INIT_WEIGHT_STD = 1
 LOSS_PER_EPOCH = 10
 
-class DecentralizedSGDClassifier():
+
+class DecentralizedSGDClassifier:
+    """Abstract class that encapsulates all attributes and methods needed to perform the decentralized SGD."""
+
     def __init__(self, num_epoch,
                  lr_type,
                  initial_lr=None,
                  regularizer=None,
                  epoch_decay_lr=None,
                  consensus_lr=None,
-                 quantization="full",
+                 quantization="full", # Different from the quantizer => check with Paul TODO
                  # number of coordinates k in top-k or random-k quantization
                  coordinates_to_keep=None,
                  # number of levels in qsgd quantization
                  num_levels=None,
                  estimate='final',
-                 # number of machines
-                 n_cores=1,
-                 topology='centralized',
-                 method='choco',
+                 n_machines=1,
+                 topology='centralized',  # Different from the communicator => check with Adrien TODO
+                 method='choco',  # Different from the communicator => check with Adrien TODO
                  distribute_data=False,
                  # whether each machine gets random data or continuous set of data
                  # might not have any difference, depends on the dataset
@@ -30,53 +35,68 @@ class DecentralizedSGDClassifier():
                  random_seed=None,
                  split_data_random_seed=None,
                  ):
-        
-        # Assertion on the parameters 
-        if lr_type in ['constant', 'decay']:
-            assert initial_lr > 0
-        if lr_type == 'decay':
-            assert initial_lr and tau
-            assert regularizer > 0
-        if lr_type == 'epoch-decay':
-            assert epoch_decay_lr is not None
+        """Constructor for the DecentralizedSGDClassifier class."""
 
         assert estimate in ['final', 'mean', 't+tau', '(t+tau)^2'] # Not used yet TODO
 
-        assert method in ['choco', 'dcd-psgd', 'ecd-psgd', 'plain']
+        assert method in ['choco', 'dcd-psgd', 'ecd-psgd', 'plain'] # Where to deal with that ? TODO
         if method in ['dcd-psgd', 'ecd-psgd']:
             assert quantization in ['random-unbiased', 'qsgd-unbiased']
 
-        if not distribute_data:
-            assert not split_data_strategy
-        else:
-            assert split_data_strategy in ['naive', 'random', 'label-sorted']
+        self.quantizer = Quantizer(quantization, coordinates_to_keep, num_levels)
+        self.communicator = Communicator(method, n_machines, topology, consensus_lr)
 
         self.num_epoch = num_epoch
         self.lr_type = lr_type
         self.initial_lr = initial_lr
-        self.regularizer = regularizer # Maybe we can move it to children classes TODO
+        self.regularizer = regularizer
         self.epoch_decay_lr = epoch_decay_lr
-        self.coordinates_to_keep = coordinates_to_keep
-        self.estimate = estimate # Not used yet TODO
+        self.estimate = estimate  # Not used yet TODO
         self.tau = tau
-        self.real_update_every = real_update_every
+        self.real_update_every = real_update_every  # Not used yet TODO
         self.random_seed = random_seed
-        self.method = method
         self.distribute_data = distribute_data
         self.split_data_strategy = split_data_strategy
         self.split_data_random_seed = split_data_random_seed
-        
-        # self.quantizer = Quantization(quantization, coordinates_to_keep, num_levels) TODO
-        # self.communicator = Communicator(consensus_lr, n_cores, topology, method) TODO
+
+        # Validate the input parameters
+        self.__validate_params()
         
         self.X = None
         self.is_fitted = False
 
-        
-    """
-    Compute the learning rate at the given epoch, iteration
-    """
-    def __lr(self, epoch, iteration, num_samples, d):
+    def __validate_params(self):
+        """Validate input parameters."""
+
+        need_positive_initial_lr = ['constant', 'decay']
+
+        # Check positive initial_lr if need lr_type is in ['constant', 'decay']
+        if self.lr_type in need_positive_initial_lr and not self.initial_lr > 0:
+            raise ValueError('If lr_type is in ' + str(need_positive_initial_lr) + 'initial_lr must be > 0')
+
+        # Check that if lr_type is decay, then parameters initial_lr and tau are given and regularizer is > 0
+        if self.lr_type == 'decay':
+            if not self.initial_lr:
+                raise ValueError('If lr_type is decay, parameter initial_lr should be given')
+            if not self.tau:
+                raise ValueError('If lr_type is decay, parameter tau should be given')
+            if not self.regularizer > 0:
+                raise ValueError('If lr_type is decay, parameter regularizer must be strictly superior to 0')
+
+        # Check that if lr_type is epoch-delay, then epoch_decay_lr is given
+        if self.lr_type == 'epoch-decay' and not self.epoch_decay_lr:
+            raise ValueError('If lr_type is epoch-decay, parameter epoch_decay_lr should be given')
+
+        valid_split_data_strategy = ['naive', 'random', 'label-sorted']
+
+        # Check that if the data are distributed, then there is a valid split data strategy
+        if self.distribute_data and not self.split_data_strategy in valid_split_data_strategy:
+            raise ValueError('If the data are distributed, split_data_strategy must be not None')
+
+    def __lr(self, epoch, iteration, num_samples):
+        """Compute the learning rate at the given epoch and iteration.
+        """
+
         t = epoch * num_samples + iteration
         if self.lr_type == 'constant':
             return self.initial_lr
@@ -86,66 +106,84 @@ class DecentralizedSGDClassifier():
             return self.initial_lr / (self.regularizer * (t + self.tau))
         if self.lr_type == 'bottou':
             return self.initial_lr / (1 + self.initial_lr * self.regularizer * t)
-     
-    """
-    Split the data onto machines following the split data strategy
-    """
-    def __split_data(self, num_samples, n_cores):
+
+    def __split_data(self, num_samples, n_machines):
+        """Split the data onto machines following the split data strategy.
+        """
         
         if self.distribute_data:
             np.random.seed(self.split_data_random_seed)
-            num_samples_per_machine = num_samples // n_cores
+            num_samples_per_machine = num_samples // n_machines
             if self.split_data_strategy == 'random':
                 all_indexes = np.arange(num_samples)
                 np.random.shuffle(all_indexes)
-            elif split_data_strategy == 'naive':
+            elif self.split_data_strategy == 'naive':
                 all_indexes = np.arange(num_samples)
-            elif split_data_strategy == 'label-sorted':
+            elif self.split_data_strategy == 'label-sorted':
                 all_indexes = np.argsort(y)
 
             indices = []
-            for machine in range(0, n_cores - 1):
+            for machine in range(0, n_machines - 1):
                 indices += [all_indexes[num_samples_per_machine * machine:\
                                         num_samples_per_machine * (machine + 1)]]
-            indices += [all_indexes[num_samples_per_machine * (n_cores - 1):]]
+            indices += [all_indexes[num_samples_per_machine * (n_machines - 1):]]
             print("length of indices:", len(indices))
             print("length of last machine indices:", len(indices[-1]))
         else:
             num_samples_per_machine = num_samples
-            indices = np.tile(np.arange(num_samples), (n_cores, 1)) 
+            indices = np.tile(np.arange(num_samples), (n_machines, 1))
             
         return indices, num_samples_per_machine
-    
-     
+
     def loss(self, A, y):
+        """Compute the loss.
+        :param A: input data
+        :param y: target data
+        """
         raise NotImplementedError("Abstract method")
     
-    def gradient(self, A, y, sample_idx, machine=None):
+    def gradient(self, A, y, sample_idx, machine):
+        """Compute the gradient of the sample at index "sample_idx" of the input data "A"
+        with the model of the machine number "machine" using target data "y".
+        :param A: input data
+        :param y: target data
+        :param sample_idx: index of the sample
+        :param machine: number of the machine
+        """
         raise NotImplementedError("Abstract method")
         
     def predict(self, A):
+        """Predict target data of input data A.
+        :param A: input data
+        """
         raise NotImplementedError("Abstract method")
         
     def score(self, A, y):
+        """Score in comparing predictions on data input A and target data y
+        :param A: input data
+        :param y: target data
+        """
         raise NotImplementedError("Abstract method")
-        
-        
+
     def fit(self, A, y_init):
-        
+        """Create the model using decentralized SGD on input data A and target data y
+        :param A: input data
+        :param y_init: target data
+        """
         y = np.copy(y_init)
         num_samples, num_features = A.shape
-        n_cores = quantizer.n_cores() # TODO
+        n_machines = self.communicator.n_machines
         losses = np.zeros(self.num_epoch + 1)
         
-        # Initialization of parameters
+        # Initialization of the parameters
         self.X = np.random.normal(0, INIT_WEIGHT_STD, size=(num_features,))
-        self.X = np.tile(self.X, (n_cores, 1)).T
-        X_hat = np.zeros((n_cores, num_features)) 
+        self.X = np.tile(self.X, (n_machines, 1)).T
+        X_hat = np.zeros((n_machines, num_features))
         
         # Split the data onto the machines
-        indices, num_samples_per_machine = __split_data(num_samples, n_cores)
+        indices, num_samples_per_machine = self.__split_data(num_samples, n_machines)
             
-        # epoch 0 loss evaluation
+        # Epoch 0 loss evaluation
         losses[0] = self.loss(A, y)
 
         compute_loss_every = int(num_samples_per_machine / LOSS_PER_EPOCH)
@@ -153,43 +191,47 @@ class DecentralizedSGDClassifier():
 
         train_start = time.time()
         np.random.seed(self.random_seed)
-            
+
+        # Decentralized SGD
         for epoch in np.arange(self.num_epoch):
             for iteration in range(num_samples_per_machine):
                 
                 t = epoch * num_samples_per_machine + iteration
-                
+
+                # Print the loss
                 if t % compute_loss_every == 0:
                     loss = self.loss(A, y)
-                    print('{} t {} epoch {} iter {} loss {} elapsed {}s'.format(p, t,
+                    print('t {} epoch {} iter {} loss {} elapsed {}s'.format(t,
                         epoch, iteration, loss, time.time() - train_start))
                     all_losses[t // compute_loss_every] = loss
                     if np.isinf(loss) or np.isnan(loss):
                         print("finish trainig")
                         break
                 
-                lr = self.__lr(epoch, iteration, num_samples_per_machine, num_features)
+                lr = self.__lr(epoch, iteration, num_samples_per_machine)
                 
                 # Gradient step
-                x_plus = np.zeros_like(self.x)
-                for machine in range(0, n_cores):
+                X_plus = np.zeros_like(self.X)
+                for machine in range(0, n_machines):
                     sample_idx = np.random.choice(indices[machine])
                     
-                    minus_grad = -1 * self.gradient(A, y, machine, sample_idx)
+                    grad = self.gradient(A, y, machine, sample_idx)
                     
-                    x_plus[:, machine] = lr * minus_grad
-                    
+                    X_plus[:, machine] = self.X[:, machine] - lr * grad  # Not sure of this step TODO
+
                     # Quantization step TODO
                     # Communication step TODO
                     
             losses[epoch + 1] = self.loss(A, y)
+
+            # Print the loss
             print("epoch {}: loss {} score {}".format(epoch, losses[epoch + 1], self.score(A, y)))
             if np.isinf(losses[epoch + 1]) or np.isnan(losses[epoch + 1]):
                 print("finish trainig")
                 break
 
         print("Training took: {}s".format(time.time() - train_start))
-        
-        self.isFitted = True
+
+        self.is_fitted = True
 
         return losses, all_losses

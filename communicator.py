@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 
+
 class Communicator:
     """Class that encapsulates all attributes and methods needed to perform the communication part
     of the decentralized SGD."""
