@@ -4,7 +4,7 @@ import numpy as np
 class Communicator:
     """Class that encapsulates all attributes and methods needed to perform the communication part
     of the decentralized SGD."""
-    def __init__(self, method='plain', n_machines=1, topology='disconnected', consensus_lr=0.0):
+    def __init__(self, method='plain', n_machines=1, topology='disconnected', consensus_lr=None):
         """Constructor for the Communicator class."""
         self.method = method
         self.n_machines = n_machines
@@ -32,6 +32,10 @@ class Communicator:
         # Check if method is valid
         if self.method not in valid_methods:
             raise ValueError('Method for communication should be one of: ' + str(valid_methods))
+
+        # Check that consensus learning rate is set when using choco method
+        if self.method == 'choco' and not self.consensus_lr:
+            raise ValueError('Method for communication "Choco" should be given parameter "consensus_lr"')
 
         # Check if number of machines is an integer
         if not isinstance(self.n_machines, int):
