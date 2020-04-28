@@ -49,7 +49,7 @@ class Communicator:
         if not isinstance(self.consensus_lr, float):
 
             if not isinstance(self.consensus_lr, int) or self.consensus_lr != 0 or self.consensus_lr != 1:
-                raise ValueError('Invalid consensus learning rate, must be a number')
+                raise ValueError('Invalid consensus learning rate, must be a (real) number')
 
         # Check if consensus lr is in interval [0,1]
         if not 0 <= self.consensus_lr <= 1:
