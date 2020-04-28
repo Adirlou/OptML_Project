@@ -150,9 +150,9 @@ class Communicator:
 
         # Choose the appropriate method
         if self.method == 'plain':
-            return __communicate_plain(weight_matrix)
+            return self.__communicate_plain(weight_matrix)
         elif self.method == 'choco':
-            return __communicate_choco(weight_matrix)
+            return self.__communicate_choco(weight_matrix)
 
     def __communicate_plain(self, weight_matrix):
         """Perform the communication step of the decentralized SGD, given the weight of
