@@ -1,5 +1,6 @@
-import time
+from abc import ABC, abstractmethod
 import numpy as np
+import time
 
 from communicator import Communicator
 from quantizer import Quantizer
@@ -8,7 +9,7 @@ INIT_WEIGHT_STD = 1
 LOSS_PER_EPOCH = 10
 
 
-class DecentralizedSGDClassifier:
+class DecentralizedSGDClassifier(ABC):
     """Abstract class that encapsulates all attributes and methods needed to perform the decentralized SGD."""
 
     def __init__(self, num_epoch,
@@ -64,6 +65,7 @@ class DecentralizedSGDClassifier:
         
         self.X = None
         self.is_fitted = False
+        self.num_samples = None
 
     def __validate_params(self):
         """Validate input parameters."""
@@ -93,11 +95,11 @@ class DecentralizedSGDClassifier:
         if self.distribute_data and not self.split_data_strategy in valid_split_data_strategy:
             raise ValueError('If the data are distributed, split_data_strategy must be not None')
 
-    def __lr(self, epoch, iteration, num_samples):
+    def __update_lr(self, epoch, iteration):
         """Compute the learning rate at the given epoch and iteration.
         """
 
-        t = epoch * num_samples + iteration
+        t = epoch * self.num_samples + iteration
         if self.lr_type == 'constant':
             return self.initial_lr
         if self.lr_type == 'epoch-decay':
@@ -107,41 +109,48 @@ class DecentralizedSGDClassifier:
         if self.lr_type == 'bottou':
             return self.initial_lr / (1 + self.initial_lr * self.regularizer * t)
 
-    def __split_data(self, num_samples, n_machines):
+    def __split_data(self, y):
         """Split the data onto machines following the split data strategy.
         """
         
         if self.distribute_data:
             np.random.seed(self.split_data_random_seed)
-            num_samples_per_machine = num_samples // n_machines
             if self.split_data_strategy == 'random':
-                all_indexes = np.arange(num_samples)
+                all_indexes = np.arange(self.num_samples)
                 np.random.shuffle(all_indexes)
             elif self.split_data_strategy == 'naive':
-                all_indexes = np.arange(num_samples)
+                all_indexes = np.arange(self.num_samples)
             elif self.split_data_strategy == 'label-sorted':
                 all_indexes = np.argsort(y)
 
-            indices = []
-            for machine in range(0, n_machines - 1):
-                indices += [all_indexes[num_samples_per_machine * machine:\
-                                        num_samples_per_machine * (machine + 1)]]
-            indices += [all_indexes[num_samples_per_machine * (n_machines - 1):]]
+            # The number of samples per machine
+            num_samples_per_machine = self.num_samples // self.communicator.n_machines
+
+            # Create list of list containing indices of datapoints for each machine
+            indices = [all_indexes[i:i + num_samples_per_machine] for i in range(0, len(all_indexes), num_samples_per_machine)]
+
+            # Delete extra data if there is
+            if not (self.num_samples / self.n_machines).is_integer():
+                del indices[-1]
+
             print("length of indices:", len(indices))
             print("length of last machine indices:", len(indices[-1]))
+
         else:
-            num_samples_per_machine = num_samples
-            indices = np.tile(np.arange(num_samples), (n_machines, 1))
+            num_samples_per_machine = self.num_samples
+            indices = np.tile(np.arange(self.num_samples), (self.communicator.n_machines, 1))
             
         return indices, num_samples_per_machine
 
+    @abstractmethod
     def loss(self, A, y):
         """Compute the loss.
         :param A: input data
         :param y: target data
         """
         raise NotImplementedError("Abstract method")
-    
+
+    @abstractmethod
     def gradient(self, A, y, sample_idx, machine):
         """Compute the gradient of the sample at index "sample_idx" of the input data "A"
         with the model of the machine number "machine" using target data "y".
@@ -150,20 +159,22 @@ class DecentralizedSGDClassifier:
         :param sample_idx: index of the sample
         :param machine: number of the machine
         """
-        raise NotImplementedError("Abstract method")
-        
+        pass
+
+    @abstractmethod
     def predict(self, A):
         """Predict target data of input data A.
         :param A: input data
         """
-        raise NotImplementedError("Abstract method")
-        
+        pass
+
+    @abstractmethod
     def score(self, A, y):
         """Score in comparing predictions on data input A and target data y
         :param A: input data
         :param y: target data
         """
-        raise NotImplementedError("Abstract method")
+        pass
 
     def fit(self, A, y_init):
         """Create the model using decentralized SGD on input data A and target data y
@@ -171,7 +182,7 @@ class DecentralizedSGDClassifier:
         :param y_init: target data
         """
         y = np.copy(y_init)
-        num_samples, num_features = A.shape
+        self.num_samples, num_features = A.shape
         n_machines = self.communicator.n_machines
         losses = np.zeros(self.num_epoch + 1)
         
@@ -181,7 +192,7 @@ class DecentralizedSGDClassifier:
         X_hat = np.zeros((n_machines, num_features))
         
         # Split the data onto the machines
-        indices, num_samples_per_machine = self.__split_data(num_samples, n_machines)
+        indices, num_samples_per_machine = self.__split_data(y)
             
         # Epoch 0 loss evaluation
         losses[0] = self.loss(A, y)
@@ -208,7 +219,7 @@ class DecentralizedSGDClassifier:
                         print("finish trainig")
                         break
                 
-                lr = self.__lr(epoch, iteration, num_samples_per_machine)
+                lr = self.__update_lr(epoch, iteration, num_samples_per_machine)
                 
                 # Gradient step
                 X_plus = np.zeros_like(self.X)
