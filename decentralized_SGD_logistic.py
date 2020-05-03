@@ -10,11 +10,10 @@ class DecentralizedSGDLogistic(DecentralizedSGDClassifier):
 
     def loss(self, A, y):
         # x = self.x_estimate if self.x_estimate is not None else self.x
-        X = self.X.copy()
-        X = X.mean(axis=1)
-        loss = np.sum(np.log(1 + np.exp(-y * (A @ X)))) / A.shape[0]
+        x = np.mean(self.X, axis=1)
+        loss = np.sum(np.log(1 + np.exp(-y * (A @ x)))) / A.shape[0]
         if self.regularizer:
-            loss += self.regularizer * np.square(X).sum() / 2
+            loss += self.regularizer * np.square(x).sum() / 2
         return loss
     
     def gradient(self, A, y, sample_idx, machine):
@@ -34,9 +33,8 @@ class DecentralizedSGDLogistic(DecentralizedSGDClassifier):
         if not self.is_fitted:
             raise Exception("The model is unfitted")
         # x = self.x_estimate if self.x_estimate is not None else self.x
-        X = np.copy(self.X)
-        X = np.mean(X, axis=1)
-        logits = A @ X
+        x = np.mean(self.X, axis=1)
+        logits = A @ x
         pred = 1 * (logits >= 0.)
         return pred
     
@@ -44,18 +42,16 @@ class DecentralizedSGDLogistic(DecentralizedSGDClassifier):
         if not self.is_fitted:
             raise Exception("The model is unfitted")
         # x = self.x_estimate if self.x_estimate is not None else self.x
-        X = np.copy(self.X)
-        X = np.mean(X, axis=1)
-        logits = A @ X
+        x = np.mean(self.X, axis=1)
+        logits = A @ x
         return sigmoid(logits)
     
     def score(self, A, y):
         if not self.is_fitted:
             raise Exception("The model is unfitted")
         # x = self.x_estimate if self.x_estimate is not None else self.x
-        X = np.copy(self.X)
-        X = np.mean(X, axis=1)
-        logits = A @ X
+        x = np.mean(self.X, axis=1)
+        logits = A @ x
         pred = 2 * (logits >= 0.) - 1
         acc = np.mean(pred == y)
         return acc
