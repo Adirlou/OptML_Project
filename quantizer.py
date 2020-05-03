@@ -7,74 +7,92 @@ class Quantizer:
     to reduce the transmitted number of bit during the communication step of DSGD.
     """
 
-    def __init__(self, quantization, k=None, s=None):
+    def __init__(self, method, features_to_keep=None, num_levels=None):
         # k: number of features to keep (usefull only for "full", "random-biased",
         # and "random-unibiased" quantizer)
         # s: number of quantization levels (usefull only for 'qsgd-biased'
         # and 'qsgd-unbiased' quantizer)
+        self.method = method
+        self.num_levels = num_levels
+        self.features_to_keep = features_to_keep
 
-        assert quantization in ['full', 'top', 'random-biased', 'random-unbiased',
-                                'qsgd-biased', 'qsgd-unbiased']
-        if quantization in ['top', 'random-biased', 'random-unbiased']:
-            assert (k is not None) and (k > 0)
-            self.features_to_keep = k
-        if quantization in ['qsgd-biased', 'qsgd-unbiased']:
-            assert (s is not None) and (s >= 1)
-            self.num_levels = s
-        self.quantization = quantization
+        self.__validate_params()
 
-    def quantize(self, x):
+    def __validate_params(self):
+        """Validate input parameters."""
+
+        top_method = ['top']
+        full_method = ['full']
+        random_methods = ['random-biased', 'random-unbiased',]
+        qsgd_methods = ['qsgd-biased', 'qsgd-unbiased']
+        valid_methods = top_method + full_method + random_methods + qsgd_methods
+
+        # Check if method is valid
+        if self.method not in valid_methods:
+            raise ValueError('Method for quantization should be one of: ' + str(valid_methods))
+
+        # If using random methods or "top", need to set the number of features to keep properly
+        if self.method in top_method + random_methods:
+            if not features_to_keep:
+                raise ValueError('Parameter "features_to_keep" must be set to use with methods ' + str(top_method + random_methods))
+
+            # Check if number of machines is an integer
+            if not isinstance(self.features_to_keep, int):
+                raise ValueError('Invalid parameter "features_to_keep", must be an integer')
+
+            # Check if number of machines is a positive integer
+            if self.features_to_keep <= 0:
+                raise ValueError('Parameter "features_to_keep" must be set to use with methods ' + str(top_method + random_methods))
+
+        # If qsgd methods are used, number of levels need to be set properly
+        if self.method in qsgd_methods and (not self.num_levels or self.num_levels <= 0):
+            raise ValueError('Parameter "num_levels" must be set to use with methods ' + str(qsgd_methods))
+
+
+    def quantize(self, weight_matrix):
+        """Perform the quantization step of the decentralized SGD,
+        depending on the given method"""
         # quantize according to quantization function
-        # x: shape(num_features, n_cores) contains the stochastic gradient vectors for each machine
-        n_cores = x.shape[1]
-        n_features = x.shape[0]
+        #
 
         if self.quantization == 'full':
-            # do not sparsify gradient
-            return x
+            return weight_matrix
+        elif self.quantization == 'top':
+            return self.__quantize_top(weight_matrix)
+        elif self.quantization in ['random-biased', 'random-unbiased']:
+            return self.__quantize_random(weight_matrix)
 
-        if self.quantization == 'top':
-            # keep only k highest features (other features are set to zero)
-            assert k <= n_features
-            q = np.zeros_like(x)
-            k = self.features_to_keep
-            for i in range(0, n_cores):
-                indexes = np.argsort(np.abs(x[:, i]))[::-1]
-                q[indexes[:k], i] = x[indexes[:k], i]
-            return q
+    def __quantize_top(self, weight_matrix):
+        # keep only k highest features (other features are set to zero)
 
-        if self.quantization in ['random-biased', 'random-unbiased']:
-            # randomly choose k features to keep (other features are set to zero)
-            assert k <= n_features
-            q = np.zeros_like(x)
-            k = self.features_to_keep
-            for i in range(0, n_cores):
+        n_features, n_machines = weight_matrix.shape
+
+        if self.features_to_keep >= n_features:
+            return weight_matrix
+        else:
+            quantized = np.zeros_like(weight_matrix)
+
+            for i in range(0, n_machines):
+                indexes = np.argsort(-np.abs(weight_matrix[:, i]))
+                quantized[indexes[:self.features_to_keep], i] = weight_matrix[indexes[:self.features_to_keep], i]
+            return quantized
+
+    def __quantize_random(self, weight_matrix):
+        # randomly choose k features to keep (other features are set to zero)
+
+        n_features, n_machines = weight_matrix.shape
+
+        if self.features_to_keep >= n_features:
+            return weight_matrix
+        else:
+            quantized = np.zeros_like(weight_matrix)
+
+            for i in range(0, n_machines):
                 indexes = np.random.choice(np.arange(n_features), k, replace=False)
-                q[indexes[:k], i] = x[indexes[:k], i]
+                quantized[indexes[:self.features_to_keep], i] = weight_matrix[indexes[:self.features_to_keep], i]
 
             if self.quantization == 'random-unbiased':
                 # normalize the kept features so that the quantized gradient is unbiased w.r.t.
                 # the real gradient
-                return x.shape[0] / k * q
-            return q
-
-        if self.quantization in ['qsgd-biased', 'qsgd-unbiased']:
-            # quantize gradients using gsgd function
-            is_biased = (self.quantization == 'qsgd-biased')
-            q = np.zeros_like(x)
-            for i in range(0, n_cores):
-                q[:, i] = self.qsgd_quantize(x[:, i], self.num_levels, is_biased)
-            return q
-
-    def qsgd_quantize(self, x, s, is_biased):
-        # gsgd quantization function c.f. https://arxiv.org/pdf/1610.02132.pdf page 5
-        norm = np.linalg.norm(x)
-        level_float = s * np.abs(x) / norm
-        previous_level = np.floor(level_float)
-        is_next_level = np.random.rand(*x.shape) < (level_float - previous_level)
-        new_level = previous_level + is_next_level
-        scale = 1
-        if is_biased:
-            n_features = x.shape[0]
-            scale = 1. / (np.minimum(n_features / s ** 2, np.sqrt(n_features) / s) + 1.)
-        return scale * np.sign(x) * norm * new_level / s
+                return weight_matrix.shape[0] / k * quantized
+            return quantized
