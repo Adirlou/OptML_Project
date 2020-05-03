@@ -5,7 +5,7 @@ import numpy as np
 class Communicator:
     """Class that encapsulates all attributes and methods needed to perform the communication part
     of the decentralized SGD."""
-    def __init__(self, method='plain', n_machines=1, topology='disconnected', consensus_lr=None):
+    def __init__(self, method='plain', n_machines=1, topology='disconnected', consensus_lr=1.0):
         """Constructor for the Communicator class."""
         self.method = method
         self.n_machines = n_machines
@@ -33,6 +33,10 @@ class Communicator:
         # Check if method is valid
         if self.method not in valid_methods:
             raise ValueError('Method for communication should be one of: ' + str(valid_methods))
+
+        # If "plain" method is used, make sure consensus learning rate is set to 1
+        if self.method == 'plain':
+            self.consensus_lr = 1.0
 
         # Check that consensus learning rate is set when using choco method
         if self.method == 'choco' and not self.consensus_lr:
@@ -149,22 +153,7 @@ class Communicator:
 
         return transition_matrix
 
-    def communicate(self, weight_matrix):
-        """Perform the communication step of the decentralized SGD, given the weight of
-        all the machines as a matrix"""
-
-        # Choose the appropriate method
-        if self.method == 'plain':
-            return self.__communicate_plain(weight_matrix)
-        elif self.method == 'choco':
-            return self.__communicate_choco(weight_matrix)
-
-    def __communicate_plain(self, weight_matrix):
-        """Perform the communication step of the decentralized SGD, given the weight of
-        all the machines as a matrix, using one simple transition step of the Markov Chain"""
-        return weight_matrix @ self.transition_matrix
-
-    def __communicate_choco(self, weight_matrix):
+    def communicate(self, weight_matrix, weight_matrix_hat):
         """Perform the communication step of the decentralized SGD, given the weight of
         all the machines as a matrix, using the Choco update"""
-        return weight_matrix + self.consensus_lr *  (weight_matrix @ (self.transition_matrix - np.eye(self.n_machines)))
+        return weight_matrix + self.consensus_lr * (weight_matrix_hat @ (self.transition_matrix - np.eye(self.n_machines)))
