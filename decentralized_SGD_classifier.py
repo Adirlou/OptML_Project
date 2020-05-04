@@ -64,6 +64,7 @@ class DecentralizedSGDClassifier(ABC):
         self.__validate_params()
         
         self.X = None
+        self.X_hat = None
         self.is_fitted = False
         self.num_samples = None
 
@@ -187,9 +188,10 @@ class DecentralizedSGDClassifier(ABC):
         losses = np.zeros(self.num_epoch + 1)
         
         # Initialization of the parameters
-        self.X = np.random.normal(0, INIT_WEIGHT_STD, size=(num_features,))
-        self.X = np.tile(self.X, (n_machines, 1)).T
-        X_hat = np.zeros((n_machines, num_features))
+        if self.X is None:
+            self.X = np.random.normal(0, INIT_WEIGHT_STD, size=(num_features,))
+            self.X = np.tile(self.X, (n_machines, 1)).T
+            self.X_hat = np.zeros((n_machines, num_features))
         
         # Split the data onto the machines
         indices, num_samples_per_machine = self.__split_data(y)
@@ -222,16 +224,18 @@ class DecentralizedSGDClassifier(ABC):
                 lr = self.__update_lr(epoch, iteration, num_samples_per_machine)
                 
                 # Gradient step
-                X_plus = np.zeros_like(self.X)
                 for machine in range(0, n_machines):
                     sample_idx = np.random.choice(indices[machine])
                     
                     grad = self.gradient(A, y, machine, sample_idx)
                     
-                    X_plus[:, machine] = self.X[:, machine] - lr * grad  # Not sure of this step TODO
+                    self.X[:, machine] = self.X[:, machine] - lr * grad
 
-                    # Quantization step TODO
-                    # Communication step TODO
+                # Communication step
+                self.X = self.communicator.communicate(self.X, self.X_hat)
+
+                # Quantization step
+                self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
                     
             losses[epoch + 1] = self.loss(A, y)
 
