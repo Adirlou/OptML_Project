@@ -15,6 +15,7 @@ class DecentralizedSGDClassifier(ABC):
     def __init__(self, num_epoch,
                  lr_type,
                  initial_lr=None,
+                 tol=0.00001,
                  regularizer=None,
                  epoch_decay_lr=None,
                  consensus_lr=None,
@@ -50,6 +51,7 @@ class DecentralizedSGDClassifier(ABC):
         self.num_epoch = num_epoch
         self.lr_type = lr_type
         self.initial_lr = initial_lr
+        self.tol = tol
         self.regularizer = regularizer
         self.epoch_decay_lr = epoch_decay_lr
         self.estimate = estimate  # Not used yet TODO
@@ -199,6 +201,8 @@ class DecentralizedSGDClassifier(ABC):
         # Epoch 0 loss evaluation
         losses[0] = self.loss(A, y)
 
+        dif_losses = np.inf
+
         compute_loss_every = int(num_samples_per_machine / LOSS_PER_EPOCH)
         all_losses = np.zeros(int(num_samples_per_machine * self.num_epoch / compute_loss_every) + 1)
 
@@ -207,37 +211,40 @@ class DecentralizedSGDClassifier(ABC):
 
         # Decentralized SGD
         for epoch in np.arange(self.num_epoch):
-            for iteration in range(num_samples_per_machine):
-                
-                t = epoch * num_samples_per_machine + iteration
+            if dif_losses > self.tol:
+                for iteration in range(num_samples_per_machine):
 
-                # Print the loss
-                if t % compute_loss_every == 0:
-                    loss = self.loss(A, y)
-                    print('t {} epoch {} iter {} loss {} elapsed {}s'.format(t,
-                        epoch, iteration, loss, time.time() - train_start))
-                    all_losses[t // compute_loss_every] = loss
-                    if np.isinf(loss) or np.isnan(loss):
-                        print("finish trainig")
-                        break
-                
-                lr = self.__update_lr(epoch, iteration, num_samples_per_machine)
-                
-                # Gradient step
-                for machine in range(0, n_machines):
-                    sample_idx = np.random.choice(indices[machine])
-                    
-                    grad = self.gradient(A, y, machine, sample_idx)
-                    
-                    self.X[:, machine] = self.X[:, machine] - lr * grad
+                    t = epoch * num_samples_per_machine + iteration
 
-                # Communication step
-                self.X = self.communicator.communicate(self.X, self.X_hat)
+                    # Print the loss
+                    if t % compute_loss_every == 0:
+                        loss = self.loss(A, y)
+                        print('t {} epoch {} iter {} loss {} elapsed {}s'.format(t,
+                            epoch, iteration, loss, time.time() - train_start))
+                        all_losses[t // compute_loss_every] = loss
+                        if np.isinf(loss) or np.isnan(loss):
+                            print("finish trainig")
+                            break
 
-                # Quantization step
-                self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
-                    
-            losses[epoch + 1] = self.loss(A, y)
+                    lr = self.__update_lr(epoch, iteration)
+
+                    # Gradient step
+                    for machine in range(0, n_machines):
+                        sample_idx = np.random.choice(indices[machine])
+
+                        grad = self.gradient(A, y, machine, sample_idx)
+
+                        self.X[:, machine] = self.X[:, machine] - lr * grad
+
+                    # Communication step
+                    self.X = self.communicator.communicate(self.X, self.X_hat)
+
+                    # Quantization step
+                    self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
+
+                    losses[epoch + 1] = self.loss(A, y)
+
+                    dif_losses = losses[epoch] - losses[epoch + 1]
 
             # Print the loss
             print("epoch {}: loss {} score {}".format(epoch, losses[epoch + 1], self.score(A, y)))
