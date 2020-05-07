@@ -52,14 +52,11 @@ class Quantizer:
     def quantize(self, weight_matrix):
         """Perform the quantization step of the decentralized SGD,
         depending on the given method"""
-        # quantize according to quantization function
-        #
-
-        if self.quantization == 'full':
+        if self.method == 'full':
             return weight_matrix
-        elif self.quantization == 'top':
+        elif self.method == 'top':
             return self.__quantize_top(weight_matrix)
-        elif self.quantization in ['random-biased', 'random-unbiased']:
+        elif self.method in ['random-biased', 'random-unbiased']:
             return self.__quantize_random(weight_matrix)
 
     def __quantize_top(self, weight_matrix):
@@ -91,7 +88,7 @@ class Quantizer:
                 indexes = np.random.choice(np.arange(n_features), k, replace=False)
                 quantized[indexes[:self.features_to_keep], i] = weight_matrix[indexes[:self.features_to_keep], i]
 
-            if self.quantization == 'random-unbiased':
+            if self.method == 'random-unbiased':
                 # normalize the kept features so that the quantized gradient is unbiased w.r.t.
                 # the real gradient
                 return weight_matrix.shape[0] / k * quantized
