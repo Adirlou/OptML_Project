@@ -183,7 +183,7 @@ class DecentralizedSGDClassifier(ABC):
         self.is_fitted = True
 
         # Make sure that labels are 0 and 1 and not -1 and 1
-        y = 1 * (y > 0.0)
+        y = 1 * (y_init > 0.0)
 
         num_samples, num_features = A.shape
         n_machines = self.communicator.n_machines
