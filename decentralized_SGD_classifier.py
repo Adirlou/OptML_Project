@@ -98,8 +98,7 @@ class DecentralizedSGDClassifier(ABC):
             raise ValueError('If the data are distributed, split_data_strategy must be not None')
 
     def __update_lr(self, curr_iteration):
-        """Compute the learning rate at the given epoch and iteration.
-        """
+        """Compute the learning rate at the given epoch and iteration."""
 
         if self.lr_type == 'constant':
             return self.initial_lr
@@ -111,8 +110,7 @@ class DecentralizedSGDClassifier(ABC):
             return self.initial_lr / (1 + self.initial_lr * self.regularizer * curr_iteration)
 
     def __split_data(self, y):
-        """Split the data onto machines following the split data strategy.
-        """
+        """Split the data onto machines following the split data strategy."""
         num_samples = len(y)
 
         if self.distribute_data:
@@ -150,7 +148,7 @@ class DecentralizedSGDClassifier(ABC):
         :param A: input data
         :param y: target data
         """
-        raise NotImplementedError("Abstract method")
+        pass
 
     @abstractmethod
     def gradient(self, A, y, sample_indices):
@@ -184,17 +182,18 @@ class DecentralizedSGDClassifier(ABC):
         """
         self.is_fitted = True
 
-        y = np.copy(y_init)
+        # Make sure that labels are 0 and 1 and not -1 and 1
+        y = 1 * (y > 0.0)
+
         num_samples, num_features = A.shape
         n_machines = self.communicator.n_machines
-        losses = np.zeros(self.num_epoch + 1)
 
         # Initialization of the parameters
         if self.X is None:
             self.X = np.random.normal(0, INIT_WEIGHT_STD, size=(num_features,))
             self.X = np.tile(self.X, (n_machines, 1)).T
             self.X_hat = np.zeros_like(self.X)
-            
+
         lr = self.initial_lr
 
         # Split the data onto the machines
@@ -256,4 +255,4 @@ class DecentralizedSGDClassifier(ABC):
 
         print("Training took: {}s".format(time.time() - train_start))
 
-        return losses, all_losses
+        return all_losses
