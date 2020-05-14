@@ -6,7 +6,6 @@ from communicator import Communicator
 from quantizer import Quantizer
 
 INIT_WEIGHT_STD = 1
-LOSS_PER_EPOCH = 10
 
 
 class DecentralizedSGDClassifier(ABC):
@@ -36,6 +35,7 @@ class DecentralizedSGDClassifier(ABC):
                  real_update_every=1,
                  random_seed=None,
                  split_data_random_seed=None,
+                 compute_loss_every=50
                  ):
         """Constructor for the DecentralizedSGDClassifier class."""
 
@@ -61,6 +61,7 @@ class DecentralizedSGDClassifier(ABC):
         self.distribute_data = distribute_data
         self.split_data_strategy = split_data_strategy
         self.split_data_random_seed = split_data_random_seed
+        self.compute_loss_every = compute_loss_every
 
         # Validate the input parameters
         self.__validate_params()
@@ -103,7 +104,7 @@ class DecentralizedSGDClassifier(ABC):
         if self.lr_type == 'constant':
             return self.initial_lr
         if self.lr_type == 'epoch-decay':
-            return self.initial_lr * (self.epoch_decay_lr ** epoch)
+            return self.initial_lr * (self.epoch_decay_lr ** epoch) # TODO epoch not defined
         if self.lr_type == 'decay':
             return self.initial_lr / (self.regularizer * (curr_iteration + self.tau))
         if self.lr_type == 'bottou':
@@ -202,8 +203,7 @@ class DecentralizedSGDClassifier(ABC):
         diff_losses = np.inf
         curr_loss = np.inf
 
-        compute_loss_every = int(num_samples_per_machine / LOSS_PER_EPOCH)
-        all_losses = np.zeros(int(num_samples_per_machine * self.num_epoch / compute_loss_every) + 1)
+        all_losses = np.zeros(int(num_samples_per_machine * self.num_epoch / self.compute_loss_every) + 1)
 
         train_start = time.time()
         np.random.seed(self.random_seed)
@@ -240,10 +240,10 @@ class DecentralizedSGDClassifier(ABC):
                     lr = self.__update_lr(curr_iteration)
 
                     # Print iteration information
-                    if curr_iteration % compute_loss_every == 0:
+                    if curr_iteration % self.compute_loss_every == 0:
                         print('current iteration: {} epoch: {} epoch_iteration {} loss {} elapsed {}s'.format(curr_iteration,
                             epoch, iteration, curr_loss, time.time() - train_start))
-                        all_losses[curr_iteration // compute_loss_every] = curr_loss
+                        all_losses[curr_iteration // self.compute_loss_every] = curr_loss
 
                     # If loss is infinite or NaN, stop the training
                     if np.isinf(curr_loss) or np.isnan(curr_loss):
