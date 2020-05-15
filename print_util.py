@@ -26,6 +26,6 @@ def log_acc_loss(epoch, nb_epoch, iteration, nb_iteration, time, score, loss, co
           '[{0}/{1}]'.format(iteration + 1, nb_iteration).ljust(15) +
           '{0:.0f}s'.format(time).ljust(10) +
           '{0:.4f}'.format(loss).ljust(10) +
-          (('.' * (round(iteration/(nb_iteration/10))%5)) if score is None else ('{0:.4f}'.format(score))).ljust(14) +
+          (('.' * (round(time*1.5)%5)) if score is None else ('{0:.4f}'.format(score))).ljust(14) +
           Color.END,
           end='\n' if persistent else '')

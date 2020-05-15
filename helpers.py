@@ -51,6 +51,6 @@ def plot_losses(losses, iterations_indices, optimum_loss=0, title="My_nice_plot"
         plt.legend(loc="best")
 
     if save_as_pdf:
-        plt.savefig(pdf_name + ".pdf", bbox_inches='tight')
+        plt.savefig("plots/" + pdf_name + ".pdf", bbox_inches='tight')
 
     plt.show()
