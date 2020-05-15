@@ -4,7 +4,7 @@ import time
 
 from communicator import Communicator
 from quantizer import Quantizer
-
+from print_util import *
 INIT_WEIGHT_STD = 1
 
 
@@ -176,7 +176,7 @@ class DecentralizedSGDClassifier(ABC):
         """
         pass
 
-    def fit(self, A, y_init):
+    def fit(self, A, y_init, logging=False):
         """Create the model using decentralized SGD on input data A and target data y
         :param A: input data
         :param y_init: target data
@@ -207,7 +207,10 @@ class DecentralizedSGDClassifier(ABC):
 
         train_start = time.time()
         np.random.seed(self.random_seed)
-
+    
+        if logging:
+            # Print logging header
+            log_acc_loss_header(color=Color.GREEN)
         # Decentralized SGD
         for epoch in range(0, self.num_epoch):
             if diff_losses > self.tol:
@@ -238,21 +241,29 @@ class DecentralizedSGDClassifier(ABC):
 
                     # Update learning rate
                     lr = self.__update_lr(curr_iteration)
-
-                    # Print iteration information
+                    
+                    if logging:
+                        # Print iteration information
+                        
+                        # Compute and print score only once per epoch
+                        if iteration == num_samples_per_machine - 1:
+                            score = self.score(A, y)
+                        else:
+                            score = None
+                          
+                        # Print
+                        log_acc_loss(epoch, self.num_epoch, iteration, num_samples_per_machine, time.time() - train_start, score, curr_loss, persistent=False)
+                        
+                        
                     if curr_iteration % self.compute_loss_every == 0:
-                        print('current iteration: {} epoch: {} epoch_iteration {} loss {} elapsed {}s'.format(curr_iteration,
-                            epoch, iteration, curr_loss, time.time() - train_start))
+
                         all_losses[curr_iteration // self.compute_loss_every] = curr_loss
 
                     # If loss is infinite or NaN, stop the training
                     if np.isinf(curr_loss) or np.isnan(curr_loss):
                         print("Training interrupted, loss is either infinity or NaN")
                         break
-
-            # Print epoch information
-            print("epoch {}: loss {} score {}".format(epoch, curr_loss, self.score(A, y)))
-
-        print("Training took: {}s".format(time.time() - train_start))
-
+            if logging:
+                print()
+        
         return all_losses
