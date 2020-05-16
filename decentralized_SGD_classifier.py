@@ -253,8 +253,7 @@ class DecentralizedSGDClassifier(ABC):
                           
                         # Print
                         log_acc_loss(epoch, self.num_epoch, iteration, num_samples_per_machine, time.time() - train_start, score, curr_loss, persistent=False)
-                        
-                        
+
                     if curr_iteration % self.compute_loss_every == 0:
 
                         all_losses[curr_iteration // self.compute_loss_every] = curr_loss
