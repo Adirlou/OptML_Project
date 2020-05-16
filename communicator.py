@@ -86,14 +86,6 @@ class Communicator:
             if self.topology.ndim != 2 or n_rows != n_cols:
                 raise ValueError('Invalid dimensions for transition matrix for topology')
 
-            # Check if the transition matrix is symmetric
-            #if not np.allclose(self.topology, self.topology.T):
-            #    raise ValueError('Invalid transition matrix, must be symmetric')
-
-            # Check if the transition matrix is aperiodic (must contain at least one self loop)
-            if not np.diag(self.topology).sum() > 0:
-                raise ValueError('Invalid transition matrix, must contain at least one self-loop')
-
             # Check if the transition matrix is irreducible (forms a strongly connected graph)
             if not nx.is_connected(nx.from_numpy_array(self.topology)):
                 raise ValueError('Invalid transition matrix, must be irreducible (strongly connected graph)')
