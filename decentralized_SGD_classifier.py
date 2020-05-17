@@ -189,9 +189,11 @@ class DecentralizedSGDClassifier(ABC):
         num_samples, num_features = A.shape
         n_machines = self.communicator.n_machines
 
+        np.random.seed(self.random_seed)
+
         # Initialization of the parameters
         if self.X is None:
-            self.X = np.random.normal(0, INIT_WEIGHT_STD, size=(num_features,))
+            self.X = np.random.normal(0, 0, size=(num_features,))
             self.X = np.tile(self.X, (n_machines, 1)).T
             self.X_hat = np.zeros_like(self.X)
 
@@ -206,7 +208,6 @@ class DecentralizedSGDClassifier(ABC):
         all_losses = np.zeros(int(num_samples_per_machine * self.num_epoch / self.compute_loss_every) + 1)
 
         train_start = time.time()
-        np.random.seed(self.random_seed)
     
         if logging:
             # Print logging header
