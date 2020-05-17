@@ -32,7 +32,7 @@ class DecentralizedSGDClassifier(ABC):
                  # might not have any difference, depends on the dataset
                  split_data_strategy=None,
                  tau=None,
-                 real_update_every=1,
+                 communication_frequency=1,
                  random_seed=None,
                  split_data_random_seed=None,
                  compute_loss_every=50
@@ -40,10 +40,6 @@ class DecentralizedSGDClassifier(ABC):
         """Constructor for the DecentralizedSGDClassifier class."""
 
         assert estimate in ['final', 'mean', 't+tau', '(t+tau)^2'] # Not used yet TODO
-
-        assert method in ['choco', 'dcd-psgd', 'ecd-psgd', 'plain'] # Where to deal with that ? TODO
-        if method in ['dcd-psgd', 'ecd-psgd']:
-            assert quantization in ['random-unbiased', 'qsgd-unbiased']
 
         self.quantizer = Quantizer(quantization, coordinates_to_keep, num_levels)
         self.communicator = Communicator(method, n_machines, topology, consensus_lr)
@@ -56,7 +52,7 @@ class DecentralizedSGDClassifier(ABC):
         self.epoch_decay_lr = epoch_decay_lr
         self.estimate = estimate  # Not used yet TODO
         self.tau = tau
-        self.real_update_every = real_update_every  # Not used yet TODO
+        self.communication_frequency = communication_frequency
         self.random_seed = random_seed
         self.distribute_data = distribute_data
         self.split_data_strategy = split_data_strategy
@@ -207,10 +203,11 @@ class DecentralizedSGDClassifier(ABC):
 
         train_start = time.time()
         np.random.seed(self.random_seed)
-    
+
         if logging:
             # Print logging header
             log_acc_loss_header(color=Color.GREEN)
+
         # Decentralized SGD
         for epoch in range(0, self.num_epoch):
             if diff_losses > self.tol:
@@ -224,11 +221,13 @@ class DecentralizedSGDClassifier(ABC):
                     # Gradient step
                     self.X -= lr * self.gradient(A, y, sample_indices)
 
-                    # Communication step
-                    self.X = self.communicator.communicate(self.X, self.X_hat)
+                    # Communicate to neighbors and quantize
+                    if iteration % self.communication_frequency == 0:
+                        # Communication step
+                        self.X = self.communicator.communicate(self.X, self.X_hat)
 
-                    # Quantization step
-                    self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
+                        # Quantization step
+                        self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
 
                     # Compute the new loss
                     new_loss = self.loss(A, y)
@@ -241,20 +240,20 @@ class DecentralizedSGDClassifier(ABC):
 
                     # Update learning rate
                     lr = self.__update_lr(curr_iteration)
-                    
+
                     if logging:
                         # Print iteration information
-                        
+
                         # Compute and print score only once per epoch
                         if iteration == num_samples_per_machine - 1:
                             score = self.score(A, y)
                         else:
                             score = None
-                          
+
                         # Print
                         log_acc_loss(epoch, self.num_epoch, iteration, num_samples_per_machine, time.time() - train_start, score, curr_loss, persistent=False)
-                        
-                        
+
+
                     if curr_iteration % self.compute_loss_every == 0:
 
                         all_losses[curr_iteration // self.compute_loss_every] = curr_loss
@@ -265,5 +264,5 @@ class DecentralizedSGDClassifier(ABC):
                         break
             if logging:
                 print()
-        
+
         return all_losses
