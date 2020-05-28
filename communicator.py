@@ -106,27 +106,40 @@ class Communicator:
 
             # Get corresponding graph using NetworkX
             if self.topology == 'disconnected':
-                graph = nx.generators.empty_graph(self.n_machines)
+                adjacency_matrix = np.eye(self.n_machines)
             elif self.topology == 'path':
-                graph = nx.generators.path_graph(self.n_machines)
+                adjacency_matrix = np.eye(self.n_machines)
+                np.fill_diagonal(adjacency_matrix[1:], val=1.0, wrap=False)
+                np.fill_diagonal(adjacency_matrix[:, 1:], val=1.0, wrap=False)
             elif self.topology == 'star':
-                graph = nx.generators.star_graph(self.n_machines)
+                adjacency_matrix = np.eye(self.n_machines)
+                adjacency_matrix[0, :] = np.ones(self.n_machines)
+                adjacency_matrix[:, 0] = np.ones(self.n_machines)
             elif self.topology == 'ring':
-                graph = nx.generators.cycle_graph(self.n_machines)
+                adjacency_matrix = np.eye(self.n_machines)
+                np.fill_diagonal(adjacency_matrix[1:], val=1.0, wrap=False)
+                np.fill_diagonal(adjacency_matrix[:, 1:], val=1.0, wrap=False)
+                adjacency_matrix[0, n_machines - 1] = 1.0
+                adjacency_matrix[n_machines - 1, 0] = 1.0
             elif self.topology == 'complete':
-                graph = nx.generators.complete_graph(self.n_machines)
+                adjacency_matrix = np.ones((self.n_machines, self.n_machines))
             elif self.topology == 'barbell':
-                graph = nx.generators.barbell_graph(self.n_machines // 2, 0)
+                adjacency_matrix = np.eye(self.n_machines)
+                half_machines = self.n_machines // 2
+                adjacency_matrix[:half_machines, :half_machines] = np.ones((half_machines, half_machines))
+                adjacency_matrix[half_machines:, half_machines:] = np.ones((half_machines, half_machines))
+                adjacency_matrix[half_machines, half_machines - 1] = 1.0
+                adjacency_matrix[half_machines - 1, half_machines] = 1.0
             elif self.topology == 'torus':
                 # Number of machines on "side" of torus
                 n_machines_on_side = int(np.sqrt(self.n_machines))
                 graph = nx.generators.lattice.grid_2d_graph(n_machines_on_side, n_machines_on_side, periodic=True)
+                
+                # Get the adjacency matrix from the graph
+                adjacency_matrix = nx.adjacency_matrix(graph).toarray()
 
-            # Get the adjacency matrix from the graph
-            adjacency_matrix = nx.adjacency_matrix(graph).toarray()
-
-            # Add self-loops
-            adjacency_matrix = adjacency_matrix + np.eye(self.n_machines)
+                # Add self-loops
+                adjacency_matrix = adjacency_matrix + np.eye(self.n_machines)
 
         # Else the transition matrix is directly given in parameter "topology"
         else:

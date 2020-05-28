@@ -44,7 +44,7 @@ class DecentralizedSGDLogistic(DecentralizedSGDClassifier):
         if is_sparse_matrix(A_rand):
             # Need to densify matrix so that einsum can be used
             # Is fast since number of machines is usually not that high
-            A_rand = np.asarray(A_rand).todense()
+            A_rand = np.asarray(A_rand.todense())
 
         y_rand = y[sample_indices]
 

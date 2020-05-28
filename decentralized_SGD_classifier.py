@@ -129,10 +129,6 @@ class DecentralizedSGDClassifier(ABC):
             # Delete extra data if there is
             if not (num_samples / self.communicator.n_machines).is_integer():
                 del indices[-1]
-
-            print("length of indices:", len(indices))
-            print("length of last machine indices:", len(indices[-1]))
-
         else:
             num_samples_per_machine = num_samples
             indices = np.tile(np.arange(num_samples), (self.communicator.n_machines, 1))
