@@ -7,13 +7,10 @@ class Quantizer:
     to reduce the transmitted number of bit during the communication step of DSGD.
     """
 
-    def __init__(self, method, features_to_keep=None, num_levels=None):
+    def __init__(self, method, features_to_keep=None):
         # k: number of features to keep (usefull only for "full", "random-biased",
         # and "random-unibiased" quantizer)
-        # s: number of quantization levels (usefull only for 'qsgd-biased'
-        # and 'qsgd-unbiased' quantizer)
         self.method = method
-        self.num_levels = num_levels
         self.features_to_keep = features_to_keep
 
         self.__validate_params()
@@ -24,8 +21,7 @@ class Quantizer:
         top_method = ['top']
         full_method = ['full']
         random_methods = ['random-biased', 'random-unbiased',]
-        qsgd_methods = ['qsgd-biased', 'qsgd-unbiased']
-        valid_methods = top_method + full_method + random_methods + qsgd_methods
+        valid_methods = top_method + full_method + random_methods
 
         # Check if method is valid
         if self.method not in valid_methods:
@@ -33,7 +29,7 @@ class Quantizer:
 
         # If using random methods or "top", need to set the number of features to keep properly
         if self.method in top_method + random_methods:
-            if not features_to_keep:
+            if not self.features_to_keep:
                 raise ValueError('Parameter "features_to_keep" must be set to use with methods ' + str(top_method + random_methods))
 
             # Check if number of machines is an integer
@@ -43,10 +39,6 @@ class Quantizer:
             # Check if number of machines is a positive integer
             if self.features_to_keep <= 0:
                 raise ValueError('Parameter "features_to_keep" must be set to use with methods ' + str(top_method + random_methods))
-
-        # If qsgd methods are used, number of levels need to be set properly
-        if self.method in qsgd_methods and (not self.num_levels or self.num_levels <= 0):
-            raise ValueError('Parameter "num_levels" must be set to use with methods ' + str(qsgd_methods))
 
 
     def quantize(self, weight_matrix):

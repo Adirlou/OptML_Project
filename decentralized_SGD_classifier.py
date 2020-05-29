@@ -14,34 +14,24 @@ class DecentralizedSGDClassifier(ABC):
     def __init__(self, num_epoch,
                  lr_type,
                  initial_lr=None,
-                 tol=0.00001,
-                 regularizer=None,
-                 epoch_decay_lr=None,
-                 consensus_lr=None,
+                 tol=1e-3,
+                 regularizer=1e-4,
+                 consensus_lr=1.0,
                  quantization="full", # Different from the quantizer => check with Paul TODO
-                 # number of coordinates k in top-k or random-k quantization
-                 coordinates_to_keep=None,
-                 # number of levels in qsgd quantization
-                 num_levels=None,
-                 estimate='final',
+                 features_to_keep=None,
                  n_machines=1,
                  topology='centralized',  # Different from the communicator => check with Adrien TODO
                  method='choco',  # Different from the communicator => check with Adrien TODO
-                 distribute_data=False,
-                 # whether each machine gets random data or continuous set of data
-                 # might not have any difference, depends on the dataset
-                 split_data_strategy=None,
+                 data_distribution_strategy=None,
                  tau=None,
                  communication_frequency=1,
                  random_seed=None,
-                 split_data_random_seed=None,
+                 data_distribution_random_seed=None,
                  compute_loss_every=50
                  ):
         """Constructor for the DecentralizedSGDClassifier class."""
 
-        assert estimate in ['final', 'mean', 't+tau', '(t+tau)^2'] # Not used yet TODO
-
-        self.quantizer = Quantizer(quantization, coordinates_to_keep, num_levels)
+        self.quantizer = Quantizer(quantization, features_to_keep)
         self.communicator = Communicator(method, n_machines, topology, consensus_lr)
 
         self.num_epoch = num_epoch
@@ -49,14 +39,11 @@ class DecentralizedSGDClassifier(ABC):
         self.initial_lr = initial_lr
         self.tol = tol
         self.regularizer = regularizer
-        self.epoch_decay_lr = epoch_decay_lr
-        self.estimate = estimate  # Not used yet TODO
         self.tau = tau
         self.communication_frequency = communication_frequency
         self.random_seed = random_seed
-        self.distribute_data = distribute_data
-        self.split_data_strategy = split_data_strategy
-        self.split_data_random_seed = split_data_random_seed
+        self.data_distribution_strategy = data_distribution_strategy
+        self.data_distribution_random_seed = data_distribution_random_seed
         self.compute_loss_every = compute_loss_every
 
         # Validate the input parameters
@@ -88,36 +75,35 @@ class DecentralizedSGDClassifier(ABC):
         if self.lr_type == 'epoch-decay' and not self.epoch_decay_lr:
             raise ValueError('If lr_type is epoch-decay, parameter epoch_decay_lr should be given')
 
-        valid_split_data_strategy = ['naive', 'random', 'label-sorted']
+        valid_data_distribution_strategy = ['naive', 'random', 'label-sorted']
 
-        # Check that if the data are distributed, then there is a valid split data strategy
-        if self.distribute_data and not self.split_data_strategy in valid_split_data_strategy:
-            raise ValueError('If the data are distributed, split_data_strategy must be not None')
+        # Check that if the data are distributed, then there is a valid data distribution strategy
+        if self.data_distribution_strategy:
+             if self.data_distribution_strategy not in valid_data_distribution_strategy:
+                 raise ValueError('Inavlid data distribution strategy, value must be one of' + str(valid_data_distribution_strategy))
 
     def __update_lr(self, curr_iteration):
         """Compute the learning rate at the given epoch and iteration."""
 
         if self.lr_type == 'constant':
             return self.initial_lr
-        if self.lr_type == 'epoch-decay':
-            return self.initial_lr * (self.epoch_decay_lr ** epoch) # TODO epoch not defined
         if self.lr_type == 'decay':
             return self.initial_lr / (self.regularizer * (curr_iteration + self.tau))
         if self.lr_type == 'bottou':
             return self.initial_lr / (1 + self.initial_lr * self.regularizer * curr_iteration)
 
-    def __split_data(self, y):
-        """Split the data onto machines following the split data strategy."""
+    def __distribute_data(self, y):
+        """Distribute the data onto machines following the data distribution strategy."""
         num_samples = len(y)
 
-        if self.distribute_data:
-            np.random.seed(self.split_data_random_seed)
-            if self.split_data_strategy == 'random':
+        if self.data_distribution_strategy:
+            np.random.seed(self.data_distribution_random_seed)
+            if self.data_distribution_strategy == 'random':
                 all_indexes = np.arange(num_samples)
                 np.random.shuffle(all_indexes)
-            elif self.split_data_strategy == 'naive':
+            elif self.data_distribution_strategy == 'naive':
                 all_indexes = np.arange(num_samples)
-            elif self.split_data_strategy == 'label-sorted':
+            elif self.data_distribution_strategy == 'label-sorted':
                 all_indexes = np.argsort(y)
 
             # The number of samples per machine
@@ -191,8 +177,8 @@ class DecentralizedSGDClassifier(ABC):
 
         lr = self.initial_lr
 
-        # Split the data onto the machines
-        indices, num_samples_per_machine = self.__split_data(y)
+        # Distribute the data onto the machines
+        indices, num_samples_per_machine = self.__distribute_data(y)
 
         diff_losses = np.inf
         curr_loss = np.inf
@@ -219,7 +205,7 @@ class DecentralizedSGDClassifier(ABC):
                     self.X -= lr * self.gradient(A, y, sample_indices)
 
                     # Communicate to neighbors and quantize
-                    if iteration % self.communication_frequency == 0:
+                    if curr_iteration % self.communication_frequency == 0:
                         # Communication step
                         self.X = self.communicator.communicate(self.X, self.X_hat)
 
@@ -251,7 +237,6 @@ class DecentralizedSGDClassifier(ABC):
                         log_acc_loss(epoch, self.num_epoch, iteration, num_samples_per_machine, time.time() - train_start, score, curr_loss, persistent=False)
 
                     if curr_iteration % self.compute_loss_every == 0:
-
                         all_losses[curr_iteration // self.compute_loss_every] = curr_loss
 
                     # If loss is infinite or NaN, stop the training
