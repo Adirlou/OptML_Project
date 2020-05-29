@@ -3,7 +3,7 @@
 ## Decentralized SGD using Choco-SGD
 *by Paul Griesser, Adrien Vandenbroucque, Robin Zbinden*
 
-In this project, we propose a Python code to compute a decentralized version of the SGD algorithm, presented here https://github.com/epfml/ChocoSGD.
+In this project, we propose a Python code to compute a decentralized version of the SGD algorithm, presented here [here](https://github.com/epfml/ChocoSGD).
 
 The contribution is twofold:
 
