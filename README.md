@@ -7,7 +7,7 @@ In this project, we propose a Python code to compute a decentralized version of 
 
 The contribution is twofold:
 
-1) The original code from https://github.com/epfml/ChocoSGD has been rewritten partially in order to allow simulations with more machines. In some cases, the execution speed is also improved.
+1) The original code from https://github.com/epfml/ChocoSGD has been partially rewritten in order to allow simulations with more machines and proposes more already implemented topologies. The user can provide his own custom topology. In some cases, the execution speed is improved by computing the gradient in matrix form for all machines.
 
 2) We created a few experiences in order to try to answer the following questions:
     - We reproduce results which are well known and are the answer to the question: How does the network topology and number of nodes affect the convergence rate of decentralized SGD? What happens when one tries to optimize using a real-world network?
