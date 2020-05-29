@@ -11,7 +11,7 @@ The contribution is twofold:
 
 2) We created a few experiences in order to try to answer the following questions:
     - In order for the decentralized SGD to converge nicely in few iterations, the nodes in the network must be well connected. If one takes a graph such as the barbell graph or the path graph, does one notice an "information bottleneck"? That is, if there are very sparse cuts, does the information flow well in the network and does it affect the convergence rate of decentalized SGD?
-    - One of the assumption of the paper about Choco-SGD (see https://arxiv.org/abs/1902.00340) is that the transition is symmetric, which thus guarantees that the limiting distribution of the induced Markov Chain is uniform among the nodes. What happens when one allow for more general matrices? Are convergence results still obtained?
+    - One of the assumption of the paper about Choco-SGD (see https://arxiv.org/abs/1902.00340) is that the transition matrix is symmetric, which thus guarantees that the limiting distribution of the induced Markov Chain is uniform among the nodes. What happens when one allow for more general matrices? Are convergence results still obtained?
     
 Code structure
 
