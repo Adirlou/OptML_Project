@@ -20,7 +20,15 @@ All results displayed in the report can be obtained by running the various Jupyt
 
 ### How to use the code?
 
-The only instantiable class for now is `DecentralizedSGDLogistic`, which as its name indicates, is used to perform the decentralized SGD with logistic loss function. There are various parameters the user can input to this class:
+The only instantiable class for now is `DecentralizedSGDLogistic`, which as its name indicates, is used to perform the decentralized SGD with logistic loss function. 
+In order to fit the model with training dataset `A` and corresponding labels `y`, the user can use the following syntax:
+
+```python
+model = DecentralizedSGDLogistic()
+model.fit(A, y)
+```
+
+Of course this version of the model uses all default values of the possible parameters. The parameters the user can input to this class are the following:
 
 - **num_epoch:** ***int, default=1***
 
