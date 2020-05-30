@@ -26,7 +26,7 @@ The only instantiable class for now is `DecentralizedSGDLogistic`, which as its 
 
     The number of epoch for which to run the decentralized SGD.
     
-- **initial_lr:** ***float, default=0.0***
+- **initial_lr:** ***float, default=0.1***
 
     The initial learning rate.
     
