@@ -17,11 +17,11 @@ class DecentralizedSGDClassifier(ABC):
                  tol=1e-3,
                  regularizer=1e-4,
                  consensus_lr=1.0,
-                 quantization="full", # Different from the quantizer => check with Paul TODO
+                 quantization_method="full",
                  features_to_keep=None,
                  n_machines=1,
-                 topology='centralized',  # Different from the communicator => check with Adrien TODO
-                 method='choco',  # Different from the communicator => check with Adrien TODO
+                 topology='centralized',
+                 communication_method='choco',
                  data_distribution_strategy=None,
                  tau=None,
                  communication_frequency=1,
@@ -31,8 +31,8 @@ class DecentralizedSGDClassifier(ABC):
                  ):
         """Constructor for the DecentralizedSGDClassifier class."""
 
-        self.quantizer = Quantizer(quantization, features_to_keep)
-        self.communicator = Communicator(method, n_machines, topology, consensus_lr)
+        self.quantizer = Quantizer(quantization_method, features_to_keep)
+        self.communicator = Communicator(communication_method, n_machines, topology, consensus_lr)
 
         self.num_epoch = num_epoch
         self.lr_type = lr_type
@@ -131,28 +131,31 @@ class DecentralizedSGDClassifier(ABC):
 
     @abstractmethod
     def gradient(self, A, y, sample_indices):
-        """Compute the gradient of the sample at index "sample_idx" of the input data "A"
-        with the model of the machine number "machine" using target data "y".
+        """Compute the logistic loss gradient of the weights of each machine
+        w.r.t. the chosen random sample at each machine
         :param A: input data
         :param y: target data
-        :param sample_indices: indices of the samples for each machine
+        :param sample_indices: indices of the selected sample for each machine
         """
         pass
 
     @abstractmethod
     def predict(self, A):
-        """Predict target data of input data A.
+        """Predict target data of input data A using the fitted model.
         :param A: input data
         """
         pass
 
-    @abstractmethod
     def score(self, A, y):
-        """Score in comparing predictions on data input A and target data y
+        """Compute the accuracy of the model given input data A and target data y
         :param A: input data
         :param y: target data
         """
-        pass
+        # Get the prediction
+        pred = self.predict(A)
+
+        # Return the accuracy
+        return np.mean(pred == y)
 
     def fit(self, A, y_init, logging=False):
         """Create the model using decentralized SGD on input data A and target data y
@@ -183,7 +186,7 @@ class DecentralizedSGDClassifier(ABC):
         diff_losses = np.inf
         curr_loss = np.inf
 
-        all_losses = np.zeros(int(num_samples_per_machine * self.num_epoch / self.compute_loss_every) + 1)
+        all_losses = np.zeros(int(np.ceil(num_samples_per_machine * self.num_epoch / self.compute_loss_every)))
 
         train_start = time.time()
 

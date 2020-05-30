@@ -104,7 +104,7 @@ class Communicator:
         # If the transition matrix is to be generated given a String
         if isinstance(self.topology, str):
 
-            # Get corresponding graph using NetworkX
+            # Get corresponding adjacency matrix
             if self.topology == 'disconnected':
                 adjacency_matrix = np.eye(self.n_machines)
             elif self.topology == 'path':
@@ -134,7 +134,7 @@ class Communicator:
                 # Number of machines on "side" of torus
                 n_machines_on_side = int(np.sqrt(self.n_machines))
                 graph = nx.generators.lattice.grid_2d_graph(n_machines_on_side, n_machines_on_side, periodic=True)
-                
+
                 # Get the adjacency matrix from the graph
                 adjacency_matrix = nx.adjacency_matrix(graph).toarray()
 

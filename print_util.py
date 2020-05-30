@@ -1,5 +1,3 @@
-import matplotlib.pyplot as plt
-
 class Color:
     PURPLE = '\033[95m'
     CYAN = '\033[96m'
@@ -19,8 +17,6 @@ def log_acc_loss_header(color=''):
     print(color + 'Epoch'.ljust(11) + 'Iteration'.ljust(15) + 'Time'.ljust(10) + 'Loss'.ljust(10) + 'Accuracy'.ljust(14) + Color.END)
 
 def log_acc_loss(epoch, nb_epoch, iteration, nb_iteration, time, score, loss, color='', persistent=True):
-
-        
     print('\r' + color +
           '[{0}/{1}]'.format(epoch + 1, nb_epoch).ljust(11) +
           '[{0}/{1}]'.format(iteration + 1, nb_iteration).ljust(15) +
