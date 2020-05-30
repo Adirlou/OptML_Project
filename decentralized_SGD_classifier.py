@@ -45,13 +45,10 @@ class DecentralizedSGDClassifier(ABC):
         self.data_distribution_strategy = data_distribution_strategy
         self.data_distribution_random_seed = data_distribution_random_seed
         self.compute_loss_every = compute_loss_every
+        self.is_fitted = False
 
         # Validate the input parameters
         self.__validate_params()
-
-        self.X = None
-        self.X_hat = None
-        self.is_fitted = False
 
     def __validate_params(self):
         """Validate input parameters."""
@@ -157,6 +154,11 @@ class DecentralizedSGDClassifier(ABC):
         # Return the accuracy
         return np.mean(pred == y)
 
+    def weight_matrix(self):
+        """Return the matrix containing the weights learned by the model, where each
+        column in the matrix corresponds to the weight vector of one machine"""
+        return self.X if self.is_fitted else None
+
     def fit(self, A, y_init, logging=False):
         """Create the model using decentralized SGD on input data A and target data y
         :param A: input data
@@ -173,10 +175,9 @@ class DecentralizedSGDClassifier(ABC):
         np.random.seed(self.random_seed)
 
         # Initialization of the parameters
-        if self.X is None:
-            self.X = np.random.normal(0, 0, size=(num_features,))
-            self.X = np.tile(self.X, (n_machines, 1)).T
-            self.X_hat = np.zeros_like(self.X)
+        self.X = np.random.normal(0, 0, size=(num_features,))
+        self.X = np.tile(self.X, (n_machines, 1)).T
+        X_hat = np.zeros_like(self.X)
 
         lr = self.initial_lr
 
@@ -210,10 +211,10 @@ class DecentralizedSGDClassifier(ABC):
                     # Communicate to neighbors and quantize
                     if curr_iteration % self.communication_frequency == 0:
                         # Communication step
-                        self.X = self.communicator.communicate(self.X, self.X_hat)
+                        self.X = self.communicator.communicate(self.X, X_hat)
 
                         # Quantization step
-                        self.X_hat += self.quantizer.quantize(self.X - self.X_hat)
+                        X_hat += self.quantizer.quantize(self.X - X_hat)
 
                     # Compute the new loss
                     new_loss = self.loss(A, y)
