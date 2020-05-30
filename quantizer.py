@@ -7,7 +7,7 @@ class Quantizer:
     to reduce the transmitted number of bit during the communication step of DSGD.
     """
 
-    def __init__(self, method, features_to_keep=None):
+    def __init__(self, method='full', features_to_keep=None):
         # k: number of features to keep (usefull only for "full", "random-biased",
         # and "random-unibiased" quantizer)
         self.method = method

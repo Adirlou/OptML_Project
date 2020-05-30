@@ -5,7 +5,7 @@ import numpy as np
 class Communicator:
     """Class that encapsulates all attributes and methods needed to perform the communication part
     of the decentralized SGD."""
-    def __init__(self, method='plain', n_machines=1, topology='disconnected', consensus_lr=1.0):
+    def __init__(self, method='plain', n_machines=1, topology='complete', consensus_lr=1.0):
         """Constructor for the Communicator class."""
         self.method = method
         self.n_machines = n_machines

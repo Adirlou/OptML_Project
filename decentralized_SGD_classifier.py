@@ -11,22 +11,22 @@ INIT_WEIGHT_STD = 1
 class DecentralizedSGDClassifier(ABC):
     """Abstract class that encapsulates all attributes and methods needed to perform the decentralized SGD."""
 
-    def __init__(self, num_epoch,
-                 lr_type,
-                 initial_lr=None,
+    def __init__(self, num_epoch=1,
+                 initial_lr=0.1,
+                 lr_type='bottou',
+                 tau=None,
                  tol=1e-3,
                  regularizer=1e-4,
+                 n_machines=1,
+                 topology='complete',
+                 communication_method='plain',
                  consensus_lr=1.0,
+                 communication_frequency=1,
+                 data_distribution_strategy='naive',
+                 data_distribution_random_seed=None,
                  quantization_method="full",
                  features_to_keep=None,
-                 n_machines=1,
-                 topology='centralized',
-                 communication_method='choco',
-                 data_distribution_strategy=None,
-                 tau=None,
-                 communication_frequency=1,
                  random_seed=None,
-                 data_distribution_random_seed=None,
                  compute_loss_every=50
                  ):
         """Constructor for the DecentralizedSGDClassifier class."""
@@ -72,12 +72,11 @@ class DecentralizedSGDClassifier(ABC):
         if self.lr_type == 'epoch-decay' and not self.epoch_decay_lr:
             raise ValueError('If lr_type is epoch-decay, parameter epoch_decay_lr should be given')
 
-        valid_data_distribution_strategy = ['naive', 'random', 'label-sorted']
+        valid_data_distribution_strategy = ['undistributed', 'naive', 'random', 'label-sorted']
 
         # Check that if the data are distributed, then there is a valid data distribution strategy
-        if self.data_distribution_strategy:
-             if self.data_distribution_strategy not in valid_data_distribution_strategy:
-                 raise ValueError('Inavlid data distribution strategy, value must be one of' + str(valid_data_distribution_strategy))
+        if self.data_distribution_strategy not in valid_data_distribution_strategy:
+            raise ValueError('Inavlid data distribution strategy, value must be one of' + str(valid_data_distribution_strategy))
 
     def __update_lr(self, curr_iteration):
         """Compute the learning rate at the given epoch and iteration."""
@@ -93,7 +92,7 @@ class DecentralizedSGDClassifier(ABC):
         """Distribute the data onto machines following the data distribution strategy."""
         num_samples = len(y)
 
-        if self.data_distribution_strategy:
+        if self.data_distribution_strategy != 'undistributed':
             np.random.seed(self.data_distribution_random_seed)
             if self.data_distribution_strategy == 'random':
                 all_indexes = np.arange(num_samples)
