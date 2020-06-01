@@ -53,9 +53,9 @@ class DecentralizedSGDClassifier(ABC):
     def __validate_params(self):
         """Validate input parameters."""
 
-        need_positive_initial_lr = ['constant', 'decay']
+        need_positive_initial_lr = ['constant', 'decay', 'bottou']
 
-        # Check positive initial_lr if need lr_type is in ['constant', 'decay']
+        # Check positive initial_lr if need lr_type is in ['constant', 'decay', 'bottou']
         if self.lr_type in need_positive_initial_lr and not self.initial_lr > 0:
             raise ValueError('If lr_type is in ' + str(need_positive_initial_lr) + 'initial_lr must be > 0')
 
