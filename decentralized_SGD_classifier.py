@@ -68,10 +68,6 @@ class DecentralizedSGDClassifier(ABC):
             if not self.regularizer > 0:
                 raise ValueError('If lr_type is decay, parameter regularizer must be strictly superior to 0')
 
-        # Check that if lr_type is epoch-delay, then epoch_decay_lr is given
-        if self.lr_type == 'epoch-decay' and not self.epoch_decay_lr:
-            raise ValueError('If lr_type is epoch-decay, parameter epoch_decay_lr should be given')
-
         valid_data_distribution_strategy = ['undistributed', 'naive', 'random', 'label-sorted']
 
         # Check that if the data are distributed, then there is a valid data distribution strategy
