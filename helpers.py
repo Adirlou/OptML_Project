@@ -54,3 +54,45 @@ def plot_losses(losses, iterations_indices, optimum_loss=0, title="My_nice_plot"
         plt.savefig("plots/" + pdf_name + ".pdf", bbox_inches='tight')
 
     plt.show()
+
+def load_csv_data(data_path):
+    """Loads data and returns y (class labels), tX (features) and ids (event ids)"""
+    y = np.genfromtxt(data_path, delimiter=",", skip_header=1, dtype=str, usecols=1)
+    x = np.genfromtxt(data_path, delimiter=",", skip_header=1)
+    input_data = x[:, 2:]
+
+    # convert class labels from strings to binary (-1,1)
+    yb = np.ones(len(y))
+    yb[np.where(y=='b')] = -1
+
+    return yb, input_data
+
+def clean(input_data, mean=False):
+
+    #Replace -999 by most frequent value of column
+    for i in range(input_data.shape[1]):
+        current_col = input_data[:, i]
+
+        if -999.0 in current_col:
+            indices_to_change = (current_col == -999.0)
+            if mean:
+                curr_mean = np.mean(current_col[~indices_to_change])
+                current_col[indices_to_change] = curr_mean
+            else:
+                (values,counts) = np.unique(current_col[~indices_to_change], return_counts=True)
+                ind=np.argmax(counts)
+                current_col[indices_to_change] = values[ind] if len(values) > 0 else 0
+
+    return input_data
+
+def standardize(x):
+    """Standardize the given data"""
+    means = x.mean(0)
+    stds = x.std(0)
+    return (x - means)/stds
+
+def load_data():
+    y, A = load_csv_data('train.csv')
+    A = standardize(clean(A, True))
+    y = 1 *(y > 0.0)
+    return y, A
