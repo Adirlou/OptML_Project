@@ -3,7 +3,7 @@
 ## Convergence of Decentralized SGD under Various Topologies
 *by Paul Griesser, Adrien Vandenbroucque, Robin Zbinden*
 
-In this project, we propose a Python code to compute a decentralized version of the SGD algorithm, initially presented in the Github repository [here](https://github.com/epfml/ChocoSGD).
+In this project, we propose a Python code to compute a decentralized version of the SGD algorithm presented initially in the Github repository [here](https://github.com/epfml/ChocoSGD).
 
 The contribution is twofold:
 
