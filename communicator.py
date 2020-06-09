@@ -1,3 +1,8 @@
+# This code is meant to improve existing code which comes from
+# https://github.com/epfml/ChocoSGD/tree/master/convex_code.
+# As such, some of the code below is taken directly from that repository,
+# and the credits should go to its authors.
+
 import networkx as nx
 import numpy as np
 
