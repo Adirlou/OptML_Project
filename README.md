@@ -49,7 +49,7 @@ Of course this version of the model uses all default values of the possible para
     
 - **tol:** ***float, default=0.001***
 
-    The stopping criterion. If it is not None, training will stop when (loss > best_loss - tol) for n_iter_no_change consecutive epochs. 
+    The stopping criterion. The training will stop when (|curr_loss - prev_loss| < tol). 
     
 - **regularizer:** ***float, default=0.0001***
 
