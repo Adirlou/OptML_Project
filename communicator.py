@@ -124,8 +124,8 @@ class Communicator:
                 adjacency_matrix = np.eye(self.n_machines)
                 np.fill_diagonal(adjacency_matrix[1:], val=1.0, wrap=False)
                 np.fill_diagonal(adjacency_matrix[:, 1:], val=1.0, wrap=False)
-                adjacency_matrix[0, n_machines - 1] = 1.0
-                adjacency_matrix[n_machines - 1, 0] = 1.0
+                adjacency_matrix[0, self.n_machines - 1] = 1.0
+                adjacency_matrix[self.n_machines - 1, 0] = 1.0
             elif self.topology == 'complete':
                 adjacency_matrix = np.ones((self.n_machines, self.n_machines))
             elif self.topology == 'barbell':
