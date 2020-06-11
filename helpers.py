@@ -90,7 +90,7 @@ def plot_losses_with_std(losses, iterations_indices, optimum_loss=0, title="My_n
                 plt.plot(x, y, label=labels[i], color=colors[i])
             else:
                 plt.plot(x, y[i], color=colors[i])
-            plt.fill_between(x, y-std, y+std, facecolor=colors[i], alpha=0.1)
+            plt.fill_between(x, y-std, y+std, facecolor=colors[i], alpha=0.25)
     else:
         mean = np.vstack(losses[i]).mean(axis=0)
         std = np.vstack(losses[i]).std(axis=0)
@@ -100,7 +100,7 @@ def plot_losses_with_std(losses, iterations_indices, optimum_loss=0, title="My_n
             plt.plot(x, y, label=labels, color=colors[0])
         else:
             plt.plot(x, y, color=colors[0])
-        plt.fill_between(x, y-std, y+std, facecolor=colors[0], alpha=0.1)
+        plt.fill_between(x, y-std, y+std, facecolor=colors[0], alpha=0.25)
 
     plt.yscale(yscale)
     if ylim:
@@ -114,7 +114,7 @@ def plot_losses_with_std(losses, iterations_indices, optimum_loss=0, title="My_n
         plt.legend(loc="best")
 
     if save_as_pdf:
-        plt.savefig("plots/" + pdf_name + ".pdf", bbox_inches='tight')
+        plt.savefig("plots/" + pdf_name + ".png", bbox_inches='tight', pad_inches=0)
 
     plt.show()
 
