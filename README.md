@@ -16,7 +16,19 @@ The contribution is twofold:
 
 ### How to reproduce the results?
 
-All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, the random seeds are already set.
+All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. Here is a more detailed explanation for each notebook:
+
+- `basic_topologies.ipynb`
+    
+    This Jupyter Notebook contains the experiments which aim at reproducing what was done in the Choco-SGD paper, but with a larger number of node. The goal is to see that already in these simple setups, we can see that the number of nodes affects the convergence, but most importantly the topology used can lead to very different results.
+ 
+ - `real_network_topologies.ipynb`
+ 
+    This Jupyter Notebook contains the experiment which aims at computing the convergence behavior for a "real" network, and compare it to the "best case" which is when nodes are fully connected.
+ 
+ - `bottleneck_topologies.ipynb`
+ 
+ - `general_matrices.ipynb`
 
 ### How to use the code?
 
