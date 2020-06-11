@@ -3,7 +3,7 @@
 ## Convergence of Decentralized SGD under Various Topologies
 *by Paul Griesser, Adrien Vandenbroucque, Robin Zbinden*
 
-In this project, we propose a Python code to compute a decentralized version of the SGD algorithm presented initially in the Github repository [here](https://github.com/epfml/ChocoSGD).
+In this project, we propose Python code to compute a decentralized version of the SGD algorithm presented initially in the Github repository [here](https://github.com/epfml/ChocoSGD).
 
 The contribution is twofold:
 
@@ -16,7 +16,23 @@ The contribution is twofold:
 
 ### How to reproduce the results?
 
-All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, the random seeds are already set.
+All results displayed in the report can be obtained by running the various Jupyter Notebooks. In each of them, the user only has to run the cells, random seeds are already set. Here is a more detailed explanation for each notebook:
+
+- `basic_topologies.ipynb`
+    
+    This Jupyter Notebook contains the experiments which aim at reproducing what was done in the Choco-SGD paper, but with a larger number of node. The goal is to see that already in these simple setups, we can see that the number of nodes affects the convergence, but most importantly the topology used can lead to very different results.
+ 
+ - `real_network_topology.ipynb`
+ 
+    This Jupyter Notebook contains the experiment which aims at computing the convergence behavior for a "real" network, and compare it to the "best case" which is when nodes are fully connected.
+ 
+ - `bottleneck_topologies.ipynb`
+ 
+    This Jupyter Notebook contains the experiments which aim at better understanding how topology affects convergence. In particular, we try to understand if sparse cuts in the underlying graph affect how the information flows between nodes during the optimization process.
+    
+ - `general_matrices.ipynb`
+ 
+    This Jupyter Notebook contains the experiments which aim at generalizing some results obtained in the Choco-SGD paper. In particular, we perform the decentralized optimization on some specific ring topologies which are such that the transition matrix corresponding to the Markov chain is not symmetric.
 
 ### How to use the code?
 
